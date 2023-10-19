@@ -19,11 +19,13 @@ class Teams(Enum):
     KOOKOO = "KooKoo"
     SPORT = "Sport"
 
-response = requests.get('https://www.liiga.fi/api/v1/games?tournament')
+matches_data = requests.get('https://www.liiga.fi/api/v1/games?tournament').json()
 
-data = response.json()
+teams_data = requests.get('https://liiga.fi/api/v1/teams/stats/2024/runkosarja/').json()
 
-df = pd.DataFrame(data)
+df = pd.DataFrame(matches_data)
+
+df_teams = pd.DataFrame(teams_data)
 
 endedGamesDf = df.drop(df.index[df['ended'] == False])
 
@@ -33,7 +35,7 @@ xGtable = pd.DataFrame(columns=['Joukkue',
         'G - xG',
         'GA', 
         'xGA',
-        'GA - xGA'])
+        'xGA - GA'])
 
 def teamData(team, home, data):
     array = []
@@ -65,7 +67,10 @@ def addData(team):
         'G - xG': [round(goals - exceptedGoals,2)],
         'GA': [goalsAgainst], 
         'xGA': [exceptedGoalsAgainst],
-        'GA - xGA': [round(goalsAgainst - exceptedGoalsAgainst,2)]
+        'xGA - GA': [round(exceptedGoalsAgainst - goalsAgainst,2)],
+        'xGD': [round(goals - exceptedGoals,2) + round(exceptedGoalsAgainst - goalsAgainst,2)],
+        'PDO': [getTeamDataFromDf(team,'pdo')],
+        'CORSI%': [getTeamDataFromDf(team, 'corsi_percentage')] 
         })
     return newData
 
@@ -74,5 +79,18 @@ def addTeamsToxGtable():
     for team in Teams:
         xGtable = pd.concat([xGtable,addData(team.value)],ignore_index=True)
     print(xGtable)
+    
+def getTeamDataFromDf(team, data):
+    teamAsLowercase = team.lower()
+    teamWithoutÄÖ = teamAsLowercase.replace('ä','a').replace('ö','o')
+    for i, rivi in df_teams.iterrows():
+        if rivi['slug'] == teamWithoutÄÖ:
+            return rivi[data]
+
+def compareTeams(team1, team2):
+    compareTable = pd.DataFrame()
+    compareTable = pd.concat([addData(team1),addData(team2)])
+    print(compareTable)
 
 addTeamsToxGtable()
+compareTeams('TPS','HIFK')
