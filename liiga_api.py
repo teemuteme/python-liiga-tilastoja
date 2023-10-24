@@ -29,14 +29,6 @@ df_teams = pd.DataFrame(teams_data)
 
 endedGamesDf = df.drop(df.index[df['ended'] == False])
 
-xGtable = pd.DataFrame(columns=['Joukkue',
-        'G',
-        'xG',
-        'G - xG',
-        'GA', 
-        'xGA',
-        'xGA - GA'])
-
 def teamData(team, home, data):
     array = []
     for indeksi, rivi in endedGamesDf.iterrows():
@@ -69,8 +61,9 @@ def addData(team):
         'xGA': [exceptedGoalsAgainst],
         'xGA - GA': [round(exceptedGoalsAgainst - goalsAgainst,2)],
         'xGD': [round(goals - exceptedGoals,2) + round(exceptedGoalsAgainst - goalsAgainst,2)],
-        'PDO': [getTeamDataFromDf(team,'pdo')],
-        'CORSI%': [getTeamDataFromDf(team, 'corsi_percentage')] 
+        'xGD/60': [round(((round(goals - exceptedGoals,2) + round(exceptedGoalsAgainst - goalsAgainst,2))/getTeamDataFromDf(team,'games')),3)],
+        'PDO': [float(getTeamDataFromDf(team,'pdo'))],
+        'CORSI%': [float(getTeamDataFromDf(team, 'corsi_percentage'))] 
         })
     return newData
 
@@ -78,7 +71,7 @@ def addTeamsToxGtable():
     xGtable = pd.DataFrame()
     for team in Teams:
         xGtable = pd.concat([xGtable,addData(team.value)],ignore_index=True)
-    print(xGtable)
+    return xGtable
     
 def getTeamDataFromDf(team, data):
     teamAsLowercase = team.lower()
@@ -92,5 +85,20 @@ def compareTeams(team1, team2):
     compareTable = pd.concat([addData(team1),addData(team2)])
     print(compareTable)
 
-addTeamsToxGtable()
-compareTeams('TPS','HIFK')
+def calculateMean(data):
+     return round(addTeamsToxGtable()[data].mean(),2)
+
+def calculateStd(data):
+     return round(addTeamsToxGtable()[data].std(),2)
+
+def standardizeData(team, data):
+     stand = round((addData(team)[data]-calculateMean(data))/calculateStd(data),3)
+     return stand
+
+def odds(team):
+    odds = standardizeData(team, 'CORSI%')+standardizeData(team, 'PDO')+standardizeData(team, 'xGD/60')
+    return round(odds.iloc[0],3)
+
+compareTeams('Jukurit','Pelicans')
+print(odds('TPS'))
+print(odds('Kärpät'))
